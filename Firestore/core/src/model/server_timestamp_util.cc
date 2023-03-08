@@ -35,7 +35,10 @@ const char kServerTimestampSentinel[] = "server_timestamp";
 Message<google_firestore_v1_Value> EncodeServerTimestamp(
     const Timestamp& local_write_time,
     absl::optional<google_firestore_v1_Value> previous_value) {
-  pb_size_t count = previous_value ? 3 : 2;
+  absl::optional<google_firestore_v1_Value> actual_previous_value =
+      previous_value.has_value() ? GetPreviousValue(*previous_value)
+                                 : absl::nullopt;
+  pb_size_t count = actual_previous_value ? 3 : 2;
 
   Message<google_firestore_v1_Value> result;
   result->which_value_type = google_firestore_v1_Value_map_value_tag;
@@ -54,10 +57,10 @@ Message<google_firestore_v1_Value> EncodeServerTimestamp(
   field->value.timestamp_value.seconds = local_write_time.seconds();
   field->value.timestamp_value.nanos = local_write_time.nanoseconds();
 
-  if (previous_value) {
+  if (actual_previous_value) {
     ++field;
     field->key = nanopb::MakeBytesArray(kPreviousValueKey);
-    field->value = *DeepClone(*previous_value).release();
+    field->value = *DeepClone(*actual_previous_value).release();
   }
 
   return result;
